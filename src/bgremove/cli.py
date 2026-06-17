@@ -12,7 +12,13 @@ from typing import Optional
 
 import typer
 
-from .core import DEFAULT_MODEL, SUPPORTED_MODELS, remove_background
+from .core import (
+    DEFAULT_BACKGROUND,
+    DEFAULT_MODEL,
+    SUPPORTED_BACKGROUNDS,
+    SUPPORTED_MODELS,
+    remove_background,
+)
 
 app = typer.Typer(
     add_completion=False,
@@ -23,14 +29,33 @@ app = typer.Typer(
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"}
 
 _MODEL_HELP = f"Segmentation model. One of: {', '.join(SUPPORTED_MODELS)}."
+_BG_HELP = (
+    "Background to put behind the subject: "
+    f"{', '.join(SUPPORTED_BACKGROUNDS)} (transparent keeps an alpha channel)."
+)
 
 
-def _process_file(src: Path, dst: Path, model: str, alpha_matting: bool) -> None:
+def _process_file(
+    src: Path, dst: Path, model: str, alpha_matting: bool, background: str
+) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     result = remove_background(
-        src.read_bytes(), model=model, alpha_matting=alpha_matting
+        src.read_bytes(),
+        model=model,
+        alpha_matting=alpha_matting,
+        background=background,
     )
     dst.write_bytes(result)
+
+
+def _validate_background(background: str) -> None:
+    if background not in SUPPORTED_BACKGROUNDS:
+        typer.secho(
+            f"Invalid --background '{background}'. "
+            f"Choose one of: {', '.join(SUPPORTED_BACKGROUNDS)}.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
 
 
 @app.command()
@@ -45,18 +70,22 @@ def run(
     alpha_matting: bool = typer.Option(
         False, "--alpha-matting", help="Refine edges (hair/fur). Slower."
     ),
+    background: str = typer.Option(
+        DEFAULT_BACKGROUND, "--background", "-b", help=_BG_HELP
+    ),
 ):
     """Remove the background from a single image."""
+    _validate_background(background)
     dst = output or input.with_suffix(".out.png")
     if dst.suffix.lower() != ".png":
         typer.secho(
-            "Note: output forced to PNG (transparency needs an alpha channel).",
+            "Note: output forced to PNG.",
             fg=typer.colors.YELLOW,
         )
         dst = dst.with_suffix(".png")
 
-    typer.echo(f"Processing {input} -> {dst} (model={model}) ...")
-    _process_file(input, dst, model, alpha_matting)
+    typer.echo(f"Processing {input} -> {dst} (model={model}, background={background}) ...")
+    _process_file(input, dst, model, alpha_matting, background)
     typer.secho(f"Done: {dst}", fg=typer.colors.GREEN)
 
 
@@ -70,8 +99,12 @@ def batch(
     alpha_matting: bool = typer.Option(
         False, "--alpha-matting", help="Refine edges (hair/fur). Slower."
     ),
+    background: str = typer.Option(
+        DEFAULT_BACKGROUND, "--background", "-b", help=_BG_HELP
+    ),
 ):
     """Remove the background from every image in a folder."""
+    _validate_background(background)
     sources = sorted(
         p for p in input_dir.iterdir() if p.suffix.lower() in _IMAGE_SUFFIXES
     )
@@ -79,12 +112,15 @@ def batch(
         typer.secho(f"No images found in {input_dir}.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    typer.echo(f"Processing {len(sources)} image(s) with model={model} ...")
+    typer.echo(
+        f"Processing {len(sources)} image(s) with model={model}, "
+        f"background={background} ..."
+    )
     failures = 0
     for src in sources:
         dst = output_dir / f"{src.stem}.png"
         try:
-            _process_file(src, dst, model, alpha_matting)
+            _process_file(src, dst, model, alpha_matting, background)
             typer.secho(f"  ok  {src.name} -> {dst.name}", fg=typer.colors.GREEN)
         except Exception as exc:  # keep going on a single bad file
             failures += 1

@@ -6,7 +6,9 @@ Public API:
 """
 
 from .core import (
+    DEFAULT_BACKGROUND,
     DEFAULT_MODEL,
+    SUPPORTED_BACKGROUNDS,
     SUPPORTED_MODELS,
     BackgroundRemover,
     remove_background,
@@ -17,6 +19,8 @@ __all__ = [
     "BackgroundRemover",
     "DEFAULT_MODEL",
     "SUPPORTED_MODELS",
+    "DEFAULT_BACKGROUND",
+    "SUPPORTED_BACKGROUNDS",
 ]
 
 __version__ = "0.1.0"

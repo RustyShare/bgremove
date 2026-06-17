@@ -89,12 +89,18 @@ bgremove batch ./photos ./out
 
 # Pick a model and refine edges (good for hair/fur)
 bgremove run portrait.jpg --model u2net_human_seg --alpha-matting
+
+# Put the subject on a solid white (or black) background instead of transparent
+bgremove run photo.jpg --background white
 ```
 
-Output is always PNG, because transparency requires an alpha channel.
+Output is always PNG. With `--background transparent` (default) it has an alpha channel;
+with `white`/`black` the subject is composited onto that solid color (opaque RGB).
 
 Available models (`--model`): `u2net` (default, general), `isnet-general-use` (sharper
 edges), `u2net_human_seg` (people), `u2netp` (fast/light), `silueta` (small download).
+
+Backgrounds (`--background` / `-b`): `transparent` (default), `white`, `black`.
 
 Run `bgremove --help` or `bgremove run --help` for all options.
 
@@ -112,8 +118,9 @@ clipboard), pick a model, and download the transparent PNGs. Each image gets its
 showing the cutout over a checkerboard (so transparency is obvious) with a per-image
 **Download**, plus a **Download all** button that bundles every cutout into a single
 `bgremoved-<date>.zip` (built client-side) — the web equivalent of the CLI's `batch` command.
-Changing the model and clicking **Re-run** re-applies it to the same set without
-re-uploading.
+A **Background** selector (Transparent / White / Black) puts the subject on a solid color
+instead of transparency. Changing the model or background and clicking **Re-run** re-applies
+it to the same set without re-uploading.
 
 Under the hood it's a FastAPI service:
 

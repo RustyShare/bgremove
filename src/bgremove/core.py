@@ -81,6 +81,12 @@ SUPPORTED_MODELS = (
     "silueta",
 )
 
+# Background fill options. "transparent" keeps the alpha channel (RGBA output);
+# the others composite the cutout onto a solid color (opaque RGB output).
+DEFAULT_BACKGROUND = "transparent"
+SUPPORTED_BACKGROUNDS = ("transparent", "white", "black")
+_BACKGROUND_RGB = {"white": (255, 255, 255), "black": (0, 0, 0)}
+
 
 # Only one model session is kept alive at a time. Each onnxruntime session holds
 # its own memory arena (GPU device memory under the CUDA provider), so caching
@@ -145,11 +151,26 @@ def _session(model: str):
         return session
 
 
+def _composite_onto(png_bytes: bytes, color: tuple) -> bytes:
+    """Composite an RGBA PNG over a solid ``color`` and return opaque PNG bytes."""
+    import io
+
+    from PIL import Image
+
+    fg = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+    bg = Image.new("RGBA", fg.size, color + (255,))
+    out = Image.alpha_composite(bg, fg).convert("RGB")
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def remove_background(
     image_bytes: bytes,
     *,
     model: str = DEFAULT_MODEL,
     alpha_matting: bool = False,
+    background: str = DEFAULT_BACKGROUND,
 ) -> bytes:
     """Remove the background from an image.
 
@@ -157,16 +178,19 @@ def remove_background(
         image_bytes: The raw bytes of the source image (JPEG, PNG, WebP, ...).
         model: Which segmentation model to use. See :data:`SUPPORTED_MODELS`.
         alpha_matting: Refine edges (helps with hair/fur) at the cost of speed.
+        background: ``"transparent"`` (default) keeps an alpha channel; ``"white"``
+            or ``"black"`` composite the subject onto that solid color.
 
     Returns:
-        PNG bytes (RGBA) of the input with its background made transparent.
+        PNG bytes — RGBA when ``background="transparent"``, otherwise opaque RGB.
     """
     _ensure_native_libs()
     logger.info(
-        "remove_background: model=%r, input=%d bytes, alpha_matting=%s",
+        "remove_background: model=%r, input=%d bytes, alpha_matting=%s, background=%r",
         model,
         len(image_bytes),
         alpha_matting,
+        background,
     )
     from rembg import remove
 
@@ -174,6 +198,11 @@ def remove_background(
     logger.info("Running inference with model %r ...", model)
     started = time.monotonic()
     result = remove(image_bytes, session=session, alpha_matting=alpha_matting)
+
+    color = _BACKGROUND_RGB.get(background)
+    if color is not None:
+        result = _composite_onto(result, color)
+
     logger.info(
         "remove_background: produced %d bytes in %.1fs.",
         len(result),
@@ -188,10 +217,19 @@ class BackgroundRemover:
     def __init__(self, model: str = DEFAULT_MODEL):
         self.model = model
 
-    def process(self, image_bytes: bytes, *, alpha_matting: bool = False) -> bytes:
+    def process(
+        self,
+        image_bytes: bytes,
+        *,
+        alpha_matting: bool = False,
+        background: str = DEFAULT_BACKGROUND,
+    ) -> bytes:
         """Remove the background using this instance's configured model."""
         return remove_background(
-            image_bytes, model=self.model, alpha_matting=alpha_matting
+            image_bytes,
+            model=self.model,
+            alpha_matting=alpha_matting,
+            background=background,
         )
 
     def warm_up(self) -> None:

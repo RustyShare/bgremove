@@ -22,7 +22,14 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from ..core import DEFAULT_MODEL, SUPPORTED_MODELS, BackgroundRemover, remove_background
+from ..core import (
+    DEFAULT_BACKGROUND,
+    DEFAULT_MODEL,
+    SUPPORTED_BACKGROUNDS,
+    SUPPORTED_MODELS,
+    BackgroundRemover,
+    remove_background,
+)
 
 logger = logging.getLogger("bgremove.web")
 
@@ -100,18 +107,26 @@ async def remove_endpoint(
     file: UploadFile = File(...),
     model: str = Form(DEFAULT_MODEL),
     alpha_matting: bool = Form(False),
+    background: str = Form(DEFAULT_BACKGROUND),
 ):
     """Remove the background from an uploaded image and return PNG bytes."""
     logger.info(
-        "POST /api/remove received: filename=%r content_type=%r model=%r alpha_matting=%s",
+        "POST /api/remove received: filename=%r content_type=%r model=%r "
+        "alpha_matting=%s background=%r",
         file.filename,
         file.content_type,
         model,
         alpha_matting,
+        background,
     )
     if model not in SUPPORTED_MODELS:
         logger.warning("Rejecting request: unknown model %r.", model)
         raise HTTPException(status_code=400, detail=f"Unknown model '{model}'.")
+    if background not in SUPPORTED_BACKGROUNDS:
+        logger.warning("Rejecting request: unknown background %r.", background)
+        raise HTTPException(
+            status_code=400, detail=f"Unknown background '{background}'."
+        )
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         logger.warning("Rejecting request: unsupported type %r.", file.content_type)
         raise HTTPException(
@@ -136,7 +151,11 @@ async def remove_endpoint(
     logger.info("Dispatching to model worker thread ...")
     try:
         result = await run_in_threadpool(
-            remove_background, data, model=model, alpha_matting=alpha_matting
+            remove_background,
+            data,
+            model=model,
+            alpha_matting=alpha_matting,
+            background=background,
         )
     except Exception as exc:  # surface a clean error to the client
         logger.exception("Processing failed for model %r.", model)

@@ -97,10 +97,13 @@ main {
   cursor: pointer;
 }
 
-/* Gallery: one card per image, responsive auto-fill grid. */
+/* Gallery: a wrapping row of cards that all share the same height but take the
+   width of their image, so each cutout fills its box with no letterbox margin
+   regardless of orientation (landscape = wide card, portrait = narrow card). */
 .gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 1.25rem;
   margin-top: 1rem;
 }
@@ -115,12 +118,21 @@ main {
   flex-direction: column;
 }
 
-.card-name {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
+/* Captions are clamped to one line at the card (image) width: width:0 keeps
+   them from widening the card, min-width:100% then fills the image width, and
+   ellipsis clips the overflow. Keeps cards the same height; full text on hover. */
+.card-name,
+.card-status {
+  width: 0;
+  min-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.card-name {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 
 .card-status {
@@ -133,7 +145,7 @@ main {
 }
 
 .card-download {
-  align-self: flex-start;
+  align-self: flex-start; /* keep the button left-aligned, not stretched */
 }
 
 .batch-actions {
@@ -142,17 +154,25 @@ main {
   margin-top: 1rem;
 }
 
+/* Fixed-height image box; width follows the image so there's no side margin.
+   fit-content stops it stretching to the card so the card sizes to the image.
+   min-width keeps the box reasonable while the spinner shows (no image yet). */
 .image-wrap {
   border-radius: 8px;
   overflow: hidden;
-  min-height: 120px;
+  height: 260px;
+  width: fit-content;
+  min-width: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/* The cutout fills the box height; its width is its natural aspect ratio, so it
+   reaches both edges of the (image-width) box — no checkerboard letterboxing. */
 .image-wrap img {
-  max-width: 100%;
+  height: 100%;
+  width: auto;
   display: block;
 }
 

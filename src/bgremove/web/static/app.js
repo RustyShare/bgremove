@@ -3,6 +3,7 @@
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("file-input");
 const modelSelect = document.getElementById("model");
+const backgroundSelect = document.getElementById("background");
 const alphaMatting = document.getElementById("alpha-matting");
 const statusEl = document.getElementById("status");
 const rerunBtn = document.getElementById("rerun");
@@ -47,6 +48,7 @@ async function processOne(file, card) {
   const form = new FormData();
   form.append("file", file);
   form.append("model", modelSelect.value);
+  form.append("background", backgroundSelect.value);
   form.append("alpha_matting", alphaMatting.checked ? "true" : "false");
 
   try {
@@ -77,6 +79,7 @@ async function processOne(file, card) {
     return true;
   } catch (err) {
     cardStatus.textContent = `Failed: ${err.message}`;
+    cardStatus.title = cardStatus.textContent; // full message on hover (it's clamped)
     cardStatus.classList.add("error");
     return false;
   } finally {
@@ -327,25 +330,90 @@ function markStale() {
   }
 }
 modelSelect.addEventListener("change", markStale);
+backgroundSelect.addEventListener("change", markStale);
 alphaMatting.addEventListener("change", markStale);
 
-["dragenter", "dragover"].forEach((evt) =>
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.add("dragover");
-  })
-);
+// Drag-and-drop is handled at the window level so that (a) the browser never
+// hijacks the tab by opening a file dropped outside the small dropzone, and
+// (b) a drop anywhere on the page is accepted. A depth counter avoids highlight
+// flicker as the cursor crosses child elements during a drag.
+let dragDepth = 0;
 
-["dragleave", "drop"].forEach((evt) =>
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.remove("dragover");
-  })
-);
+function setDragging(on) {
+  dropzone.classList.toggle("dragover", on);
+}
 
-dropzone.addEventListener("drop", (e) => {
-  if (e.dataTransfer.files && e.dataTransfer.files.length) {
-    handleFiles(e.dataTransfer.files);
+window.addEventListener("dragenter", (e) => {
+  e.preventDefault();
+  dragDepth += 1;
+  setDragging(true);
+});
+
+window.addEventListener("dragover", (e) => {
+  // Required for the drop event to fire (and to suppress the browser default).
+  e.preventDefault();
+});
+
+window.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) setDragging(false);
+});
+
+// Extract File objects from a drop. Must run synchronously inside the event:
+// dataTransfer (and items.getAsFile) are only valid during dispatch. Some
+// platforms/browsers populate dataTransfer.items but not dataTransfer.files
+// (or vice versa), so try both.
+function filesFromDataTransfer(dt) {
+  if (!dt) return [];
+  if (dt.files && dt.files.length) return Array.from(dt.files);
+  if (dt.items && dt.items.length) {
+    const out = [];
+    for (const item of dt.items) {
+      if (item.kind === "file") {
+        const f = item.getAsFile();
+        if (f) out.push(f);
+      }
+    }
+    return out;
+  }
+  return [];
+}
+
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  setDragging(false);
+  const dt = e.dataTransfer;
+  const files = filesFromDataTransfer(dt);
+  if (files.length) {
+    handleFiles(files);
+    return;
+  }
+
+  // No File bytes in the drop. The common cause on Linux is dragging from a
+  // file manager (e.g. GNOME Files / Nautilus) into Firefox: it transfers only
+  // file paths ("text/uri-list"), and the browser won't read file:// contents
+  // for security. There is no client-side way to recover the bytes — the file
+  // picker is the reliable path. Report precisely so it isn't a silent mystery.
+  const types = dt && dt.types ? Array.from(dt.types) : [];
+  const pathOnlyDrag =
+    types.includes("text/uri-list") ||
+    types.includes("x-special/gnome-copied-files");
+  if (pathOnlyDrag) {
+    setStatus(
+      "This drag passed only file paths, not the files — Firefox can't read " +
+        "files dragged from GNOME Files (Nautilus). Click the box to choose " +
+        "the images instead (or use a Chromium-based browser to drag them).",
+      true
+    );
+  } else {
+    setStatus(
+      `Couldn't read any file from the drop (drag types: ${
+        types.join(", ") || "none"
+      }). Click the box to choose files instead.`,
+      true
+    );
   }
 });
 
