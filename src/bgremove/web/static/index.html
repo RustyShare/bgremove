@@ -36,6 +36,9 @@
           <input id="alpha-matting" type="checkbox" />
           Alpha matting (refine hair/fur edges, slower)
         </label>
+        <button id="rerun" type="button" class="button" disabled>
+          Re-run with selected model
+        </button>
       </div>
 
       <section id="results" class="results" hidden>
@@ -46,6 +49,7 @@
         <figure class="panel">
           <figcaption>Background removed</figcaption>
           <div class="image-wrap checkerboard">
+            <div id="spinner" class="spinner" hidden></div>
             <img id="result" alt="result" />
           </div>
           <a id="download" class="button" download="cutout.png" hidden
@@ -55,12 +59,11 @@
       </section>
 
       <p id="status" class="status" role="status" aria-live="polite"></p>
+      <p class="muted hint">
+        The first request for a given model downloads it (~170&nbsp;MB for the
+        large ones), so it can take a while. The page stays usable meanwhile.
+      </p>
     </main>
-
-    <div id="overlay" class="overlay" hidden>
-      <div class="spinner"></div>
-      <p>Removing background… (first run downloads the model, ~170&nbsp;MB)</p>
-    </div>
 
     <script src="/app.js"></script>
   </body>

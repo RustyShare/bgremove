@@ -9,6 +9,13 @@ import io
 import pytest
 from PIL import Image
 
+# Tests import rembg directly (via importorskip), bypassing the lazy shim in
+# bgremove.core. Run it here first so the native libs are preloaded before any
+# test module imports rembg (needed on NixOS outside the Nix shell).
+from bgremove.core import _ensure_native_libs
+
+_ensure_native_libs()
+
 
 @pytest.fixture
 def sample_image_bytes() -> bytes:

@@ -165,6 +165,36 @@ main {
   background: var(--accent);
 }
 
+/* The re-run control reuses .button but is a <button> element in the controls
+   row, so reset native button styling and remove the download link's top margin. */
+button.button {
+  margin-top: 0;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Drawn attention when the current result is stale (model/options changed). */
+.button.attention:not(:disabled) {
+  background: var(--ok);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(67, 197, 158, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(67, 197, 158, 0);
+  }
+}
+
 .status {
   text-align: center;
   color: var(--muted);
@@ -175,18 +205,10 @@ main {
   color: #ff6b6b;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 12, 16, 0.82);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  z-index: 10;
+.hint {
   text-align: center;
-  padding: 1rem;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
 }
 
 .spinner {

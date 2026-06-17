@@ -43,8 +43,22 @@ Inside the shell, `bgremove`, `bgremove-web`, and `pytest` are ready to use. See
 > **First run downloads a model** (~170 MB, cached under `~/.u2net/`). It happens
 > automatically the first time you process an image; later runs are offline.
 
-For GPU acceleration (NVIDIA + CUDA), install the `gpu` extra instead of the default
-CPU runtime: `pip install -e ".[gpu]"`.
+### GPU (NVIDIA + CUDA) on NixOS
+
+Use the GPU shell, which additionally puts the CUDA runtime libraries that onnxruntime-gpu
+needs (`libcublasLt`/`libcublas`, `libcudart`, `libcudnn`, `libcufft`, `libcurand`) on the
+loader path — fixing errors like `libcublasLt.so.12: cannot open shared object file`:
+
+```bash
+nix-shell --arg cudaSupport true     # classic
+# or, with flakes:
+nix develop .#gpu
+```
+
+Then install the GPU runtime into the venv: `pip install -e ".[gpu]"`.
+
+CUDA is unfree and large, so it is opt-in — the default (CPU) shell pulls none of it. The
+first entry into the GPU shell downloads the CUDA libraries (cuDNN is several hundred MB).
 
 ### NixOS note
 
