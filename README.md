@@ -107,9 +107,12 @@ bgremove-web
 # then open http://127.0.0.1:8000
 ```
 
-Drag an image onto the page (or click to choose, or paste from the clipboard), pick a
-model, and download the transparent PNG. The result is shown over a checkerboard so the
-transparent areas are obvious.
+Drag **one or more** images onto the page (or click to choose multiple, or paste from the
+clipboard), pick a model, and download the transparent PNGs. Each image gets its own card
+showing the cutout over a checkerboard (so transparency is obvious) with a per-image
+**Download**, plus a **Download all** button — the web equivalent of the CLI's `batch`
+command. Changing the model and clicking **Re-run** re-applies it to the same set without
+re-uploading.
 
 Under the hood it's a FastAPI service:
 

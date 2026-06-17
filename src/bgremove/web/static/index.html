@@ -14,10 +14,10 @@
 
     <main>
       <section id="dropzone" class="dropzone" tabindex="0">
-        <input id="file-input" type="file" accept="image/*" hidden />
+        <input id="file-input" type="file" accept="image/*" multiple hidden />
         <div class="dropzone-inner">
-          <p><strong>Drag &amp; drop</strong> an image here</p>
-          <p class="muted">or click to choose a file</p>
+          <p><strong>Drag &amp; drop</strong> one or more images here</p>
+          <p class="muted">or click to choose files</p>
         </div>
       </section>
 
@@ -41,24 +41,29 @@
         </button>
       </div>
 
-      <section id="results" class="results" hidden>
-        <figure class="panel">
-          <figcaption>Original</figcaption>
-          <div class="image-wrap"><img id="original" alt="original" /></div>
-        </figure>
-        <figure class="panel">
-          <figcaption>Background removed</figcaption>
-          <div class="image-wrap checkerboard">
-            <div id="spinner" class="spinner" hidden></div>
-            <img id="result" alt="result" />
-          </div>
-          <a id="download" class="button" download="cutout.png" hidden
-            >Download PNG</a
-          >
-        </figure>
-      </section>
+      <div id="batch-actions" class="batch-actions" hidden>
+        <button id="download-all" class="button" type="button">
+          Download all
+        </button>
+      </div>
 
       <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="gallery" class="gallery" hidden></section>
+
+      <!-- Template for one result card, cloned per image in app.js. -->
+      <template id="card-template">
+        <figure class="card">
+          <div class="image-wrap checkerboard">
+            <div class="spinner"></div>
+            <img class="card-result" alt="result" hidden />
+          </div>
+          <figcaption class="card-name"></figcaption>
+          <span class="card-status muted"></span>
+          <a class="button card-download" hidden>Download</a>
+        </figure>
+      </template>
+
       <p class="muted hint">
         The first request for a given model downloads it (~170&nbsp;MB for the
         large ones), so it can take a while. The page stays usable meanwhile.
