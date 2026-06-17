@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>bgremove — background removal</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>bgremove</h1>
+      <p class="tagline">Drop a picture — keep only the main subject.</p>
+    </header>
+
+    <main>
+      <section id="dropzone" class="dropzone" tabindex="0">
+        <input id="file-input" type="file" accept="image/*" hidden />
+        <div class="dropzone-inner">
+          <p><strong>Drag &amp; drop</strong> an image here</p>
+          <p class="muted">or click to choose a file</p>
+        </div>
+      </section>
+
+      <div class="controls">
+        <label>
+          Model
+          <select id="model">
+            <option value="u2net" selected>u2net (general)</option>
+            <option value="isnet-general-use">isnet (sharper edges)</option>
+            <option value="u2net_human_seg">u2net (people)</option>
+            <option value="u2netp">u2netp (fast/light)</option>
+            <option value="silueta">silueta (small)</option>
+          </select>
+        </label>
+        <label class="checkbox">
+          <input id="alpha-matting" type="checkbox" />
+          Alpha matting (refine hair/fur edges, slower)
+        </label>
+      </div>
+
+      <section id="results" class="results" hidden>
+        <figure class="panel">
+          <figcaption>Original</figcaption>
+          <div class="image-wrap"><img id="original" alt="original" /></div>
+        </figure>
+        <figure class="panel">
+          <figcaption>Background removed</figcaption>
+          <div class="image-wrap checkerboard">
+            <img id="result" alt="result" />
+          </div>
+          <a id="download" class="button" download="cutout.png" hidden
+            >Download PNG</a
+          >
+        </figure>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="spinner"></div>
+      <p>Removing background… (first run downloads the model, ~170&nbsp;MB)</p>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,157 @@
+# bgremove
+
+Remove the background from a picture, keeping only the main subject.
+
+`bgremove` ships **two frontends over one shared core**:
+
+- a **CLI** for single images and batch folders, and
+- a **web app** with a drag-and-drop UI that previews the cutout and lets you download it.
+
+Background removal runs **locally** using [`rembg`](https://github.com/danielgatis/rembg)
+(U2Net / ISNet ONNX models on `onnxruntime`). No API keys, no per-image cost, and your
+images never leave your machine.
+
+> See [`DESIGN.md`](./DESIGN.md) for the architecture and the reasoning behind the choices.
+
+---
+
+## Install
+
+Requires Python ≥ 3.9.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"      # drop [dev] if you don't need the test deps
+```
+
+### On NixOS (recommended)
+
+Use the provided Nix shell — it puts the native libraries the pip wheels need
+(`libstdc++`, `zlib`, `glib`) on the loader path and bootstraps the virtualenv for you, so
+install and run work out of the box:
+
+```bash
+nix-shell              # classic; creates ./.venv and installs deps on first entry
+# or, with flakes:
+nix develop
+```
+
+Inside the shell, `bgremove`, `bgremove-web`, and `pytest` are ready to use. See the
+[NixOS note](#nixos-note) below for what this works around.
+
+> **First run downloads a model** (~170 MB, cached under `~/.u2net/`). It happens
+> automatically the first time you process an image; later runs are offline.
+
+For GPU acceleration (NVIDIA + CUDA), install the `gpu` extra instead of the default
+CPU runtime: `pip install -e ".[gpu]"`.
+
+### NixOS note
+
+On NixOS, the pip-installed `numpy`/`onnxruntime` wheels fail to load `libstdc++.so.6`
+unless the loader can find it. **The recommended fix is the [Nix shell](#on-nixos-recommended)
+above** (`nix-shell` / `nix develop`), which sets this up automatically.
+
+If you instead use a plain pip venv outside the Nix shell, point `LD_LIBRARY_PATH` at a gcc
+lib in the Nix store before running anything that imports `rembg`:
+
+```bash
+export LD_LIBRARY_PATH="$(dirname "$(find /nix/store -name 'libstdc++.so.6' | head -1)"):$LD_LIBRARY_PATH"
+```
+
+---
+
+## CLI
+
+```bash
+# Single image -> writes photo.out.png next to it
+bgremove run photo.jpg
+
+# Choose the output path explicitly
+bgremove run photo.jpg cutout.png
+
+# A whole folder -> one PNG per input in ./out
+bgremove batch ./photos ./out
+
+# Pick a model and refine edges (good for hair/fur)
+bgremove run portrait.jpg --model u2net_human_seg --alpha-matting
+```
+
+Output is always PNG, because transparency requires an alpha channel.
+
+Available models (`--model`): `u2net` (default, general), `isnet-general-use` (sharper
+edges), `u2net_human_seg` (people), `u2netp` (fast/light), `silueta` (small download).
+
+Run `bgremove --help` or `bgremove run --help` for all options.
+
+---
+
+## Web app
+
+```bash
+bgremove-web
+# then open http://127.0.0.1:8000
+```
+
+Drag an image onto the page (or click to choose, or paste from the clipboard), pick a
+model, and download the transparent PNG. The result is shown over a checkerboard so the
+transparent areas are obvious.
+
+Under the hood it's a FastAPI service:
+
+| Method | Path          | Description                              |
+| ------ | ------------- | ---------------------------------------- |
+| `GET`  | `/`           | The single-page UI                       |
+| `POST` | `/api/remove` | Multipart upload → returns the PNG cutout |
+| `GET`  | `/api/health` | Liveness probe                           |
+
+Example with `curl`:
+
+```bash
+curl -F "file=@photo.jpg" -F "model=u2net" \
+  http://127.0.0.1:8000/api/remove --output cutout.png
+```
+
+For a production deployment, run it under a process manager / multiple workers, e.g.
+`uvicorn bgremove.web.app:app --host 0.0.0.0 --port 8000 --workers 2`.
+
+---
+
+## Use it as a library
+
+```python
+from bgremove import remove_background
+
+png_bytes = remove_background(open("photo.jpg", "rb").read())
+open("cutout.png", "wb").write(png_bytes)
+```
+
+---
+
+## Tests
+
+```bash
+pytest
+```
+
+The suite synthesizes a tiny test image at runtime (no fixtures committed) and exercises
+the real model, so the first invocation triggers the one-time model download. Tests skip
+gracefully if `rembg` isn't installed.
+
+---
+
+## Project layout
+
+```
+src/bgremove/
+  core.py            # the single place that talks to rembg
+  cli.py             # Typer CLI (run / batch)
+  web/app.py         # FastAPI app + static UI
+  web/static/        # drag-and-drop frontend (no build step)
+tests/               # core + web tests
+DESIGN.md            # architecture & decisions
+```
+
+## License
+
+MIT.
