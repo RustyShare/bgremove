@@ -11,12 +11,13 @@ transparent, which requires an alpha-capable container format.
 from __future__ import annotations
 
 import ctypes
+import gc
 import glob
 import logging
 import os
 import sys
+import threading
 import time
-from functools import lru_cache
 
 logger = logging.getLogger("bgremove.core")
 
@@ -81,38 +82,67 @@ SUPPORTED_MODELS = (
 )
 
 
-@lru_cache(maxsize=4)
-def _session(model: str):
-    """Return a cached ``rembg`` session for ``model``.
+# Only one model session is kept alive at a time. Each onnxruntime session holds
+# its own memory arena (GPU device memory under the CUDA provider), so caching
+# several would accumulate allocations across model switches and exhaust the GPU
+# ("Failed to allocate memory ..."). When a different model is requested we drop
+# the previous session and gc.collect() so its arena is freed before loading the
+# next one. Guarded by a lock because the web app runs inference in a threadpool.
+_session_lock = threading.Lock()
+_current_model: str | None = None
+_current_session = None
 
-    Building a session loads an ONNX model into memory and, on first use ever,
-    downloads it (cached under ``~/.u2net/``). Both are expensive, so sessions are
-    memoised per-model for the lifetime of the process.
+
+def _session(model: str):
+    """Return the session for ``model``, releasing any previously loaded model.
+
+    Building a session loads an ONNX model (downloading it on first use ever,
+    cached under ``~/.u2net/``). Switching models frees the prior session first.
     """
+    global _current_model, _current_session
+
     # Imported lazily so that importing :mod:`bgremove` (e.g. for ``--help`` or
     # version checks) does not pay the cost of pulling in onnxruntime.
     _ensure_native_libs()
-    logger.info("Importing rembg / onnxruntime for model %r ...", model)
-    from rembg import new_session
 
-    model_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
-    model_path = os.path.join(model_home, f"{model}.onnx")
-    if os.path.exists(model_path):
-        logger.info("Model %r already cached at %s; loading session.", model, model_path)
-    else:
+    with _session_lock:
+        if model == _current_model and _current_session is not None:
+            return _current_session
+
+        if _current_session is not None:
+            logger.info(
+                "Releasing session for model %r to free its memory before "
+                "loading %r.",
+                _current_model,
+                model,
+            )
+            _current_session = None
+            _current_model = None
+            gc.collect()  # trigger the onnxruntime session destructor / arena free
+
+        logger.info("Importing rembg / onnxruntime for model %r ...", model)
+        from rembg import new_session
+
+        model_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
+        model_path = os.path.join(model_home, f"{model}.onnx")
+        if os.path.exists(model_path):
+            logger.info("Model %r already cached at %s; loading session.", model, model_path)
+        else:
+            logger.info(
+                "Model %r NOT cached — rembg will download it to %s (this can take a "
+                "while for ~170 MB models).",
+                model,
+                model_path,
+            )
+
+        started = time.monotonic()
+        session = new_session(model)
         logger.info(
-            "Model %r NOT cached — rembg will download it to %s (this can take a "
-            "while for ~170 MB models).",
-            model,
-            model_path,
+            "Model %r session ready in %.1fs.", model, time.monotonic() - started
         )
-
-    started = time.monotonic()
-    session = new_session(model)
-    logger.info(
-        "Model %r session ready in %.1fs.", model, time.monotonic() - started
-    )
-    return session
+        _current_model = model
+        _current_session = session
+        return session
 
 
 def remove_background(

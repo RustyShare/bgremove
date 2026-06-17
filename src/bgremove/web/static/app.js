@@ -17,6 +17,9 @@ let busy = false;
 let lastFiles = [];
 // Object URLs created for results, tracked so they can be revoked on a new run.
 let resultUrls = [];
+// Successful results of the current batch: { filename, blob }, used to build the
+// "Download all" zip.
+let batchResults = [];
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -65,10 +68,12 @@ async function processOne(file, card) {
     img.src = url;
     img.hidden = false;
     const base = file.name.replace(/\.[^.]+$/, "") || "cutout";
+    const filename = `${base}-nobg.png`;
     download.href = url;
-    download.setAttribute("download", `${base}-nobg.png`);
+    download.setAttribute("download", filename);
     download.hidden = false;
     cardStatus.textContent = "Done.";
+    batchResults.push({ filename, blob });
     return true;
   } catch (err) {
     cardStatus.textContent = `Failed: ${err.message}`;
@@ -110,6 +115,7 @@ async function handleFiles(fileList) {
 
   // Reset the gallery for this run.
   revokeResults();
+  batchResults = [];
   gallery.innerHTML = "";
   gallery.hidden = false;
   batchActions.hidden = true;
@@ -151,13 +157,134 @@ async function handleFiles(fileList) {
   }
 }
 
-// Trigger a download for each successfully-processed card.
-function downloadAll() {
-  const links = gallery.querySelectorAll(".card-download:not([hidden])");
-  links.forEach((link, i) => {
-    // Stagger slightly so the browser doesn't drop near-simultaneous downloads.
-    setTimeout(() => link.click(), i * 200);
+// Save a blob to disk via a temporary anchor.
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Download every successful cutout as a single zip (one PNG downloads directly).
+async function downloadAll() {
+  if (batchResults.length === 0) return;
+  if (batchResults.length === 1) {
+    saveBlob(batchResults[0].blob, batchResults[0].filename);
+    return;
+  }
+  const used = new Map();
+  const entries = await Promise.all(
+    batchResults.map(async (r) => {
+      // Disambiguate duplicate names so no entry is overwritten in the zip.
+      let name = r.filename;
+      const n = (used.get(name) || 0) + 1;
+      used.set(name, n);
+      if (n > 1) name = name.replace(/(\.[^.]+)?$/, `-${n}$1`);
+      return { name, data: new Uint8Array(await r.blob.arrayBuffer()) };
+    })
+  );
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  saveBlob(buildZip(entries), `bgremoved-${date}.zip`);
+}
+
+// --- Minimal store-only ZIP writer (no dependency) ------------------------
+// PNGs are already compressed, so entries are stored uncompressed (method 0).
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function buildZip(entries) {
+  const enc = new TextEncoder();
+  const files = entries.map((e) => ({
+    name: enc.encode(e.name),
+    data: e.data,
+    crc: crc32(e.data),
+  }));
+
+  let total = 22; // end-of-central-directory record
+  for (const f of files) total += 30 + f.name.length + f.data.length; // local
+  for (const f of files) total += 46 + f.name.length; // central directory
+
+  const buf = new ArrayBuffer(total);
+  const view = new DataView(buf);
+  const out = new Uint8Array(buf);
+  let off = 0;
+  const offsets = [];
+
+  for (const f of files) {
+    offsets.push(off);
+    view.setUint32(off, 0x04034b50, true); // local file header signature
+    view.setUint16(off + 4, 20, true); // version needed
+    view.setUint16(off + 6, 0, true); // flags
+    view.setUint16(off + 8, 0, true); // method: store
+    view.setUint16(off + 10, 0, true); // mod time
+    view.setUint16(off + 12, 0, true); // mod date
+    view.setUint32(off + 14, f.crc, true);
+    view.setUint32(off + 18, f.data.length, true); // compressed size
+    view.setUint32(off + 22, f.data.length, true); // uncompressed size
+    view.setUint16(off + 26, f.name.length, true);
+    view.setUint16(off + 28, 0, true); // extra length
+    off += 30;
+    out.set(f.name, off);
+    off += f.name.length;
+    out.set(f.data, off);
+    off += f.data.length;
+  }
+
+  const cdStart = off;
+  files.forEach((f, i) => {
+    view.setUint32(off, 0x02014b50, true); // central directory header signature
+    view.setUint16(off + 4, 20, true); // version made by
+    view.setUint16(off + 6, 20, true); // version needed
+    view.setUint16(off + 8, 0, true); // flags
+    view.setUint16(off + 10, 0, true); // method
+    view.setUint16(off + 12, 0, true); // mod time
+    view.setUint16(off + 14, 0, true); // mod date
+    view.setUint32(off + 16, f.crc, true);
+    view.setUint32(off + 20, f.data.length, true);
+    view.setUint32(off + 24, f.data.length, true);
+    view.setUint16(off + 28, f.name.length, true);
+    view.setUint16(off + 30, 0, true); // extra length
+    view.setUint16(off + 32, 0, true); // comment length
+    view.setUint16(off + 34, 0, true); // disk number start
+    view.setUint16(off + 36, 0, true); // internal attrs
+    view.setUint32(off + 38, 0, true); // external attrs
+    view.setUint32(off + 42, offsets[i], true); // local header offset
+    off += 46;
+    out.set(f.name, off);
+    off += f.name.length;
   });
+
+  const cdSize = off - cdStart;
+  view.setUint32(off, 0x06054b50, true); // EOCD signature
+  view.setUint16(off + 4, 0, true); // disk number
+  view.setUint16(off + 6, 0, true); // central dir start disk
+  view.setUint16(off + 8, files.length, true); // entries on this disk
+  view.setUint16(off + 10, files.length, true); // total entries
+  view.setUint32(off + 12, cdSize, true);
+  view.setUint32(off + 16, cdStart, true);
+  view.setUint16(off + 20, 0, true); // comment length
+
+  return new Blob([buf], { type: "application/zip" });
 }
 
 // Safety net: surface any uncaught error/rejection on the page instead of
