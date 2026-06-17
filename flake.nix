@@ -7,7 +7,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         # allowUnfree is needed for the CUDA packages used by the gpu shell.
         pkgs = import nixpkgs {
@@ -55,13 +55,34 @@
             echo "bgremove dev shell ready — try:  bgremove --help   |   bgremove-web   |   pytest"
           '';
         };
+        bgremove = pkgs.python3Packages.callPackage ./package.nix { };
       in
       {
+        # Packaged app (no pip / no LD_LIBRARY_PATH needed): nix build
+        packages.default = bgremove;
+        packages.bgremove = bgremove;
+
+        # nix run            -> the web server
+        # nix run .#bgremove -> the CLI
+        apps.default = {
+          type = "app";
+          program = "${bgremove}/bin/bgremove-web";
+        };
+        apps.bgremove = {
+          type = "app";
+          program = "${bgremove}/bin/bgremove";
+        };
+
         # CPU shell (default): nix develop
         devShells.default = mkDevShell baseLibs;
 
         # GPU shell: nix develop .#gpu  (adds the CUDA libs to LD_LIBRARY_PATH).
         # Install the GPU runtime into the venv with: pip install -e ".[gpu]"
         devShells.gpu = mkDevShell (baseLibs ++ cudaLibs);
-      });
+      }))
+    // {
+      # NixOS module (system-independent): add to a host's imports and set
+      # services.bgremove.enable = true;
+      nixosModules.default = import ./nixos-module.nix { inherit self; };
+    };
 }

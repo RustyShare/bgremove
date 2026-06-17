@@ -174,10 +174,19 @@ app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="static"
 
 
 def main() -> None:
-    """Console-script entry point: run the dev server with uvicorn."""
+    """Console-script entry point: run the server with uvicorn.
+
+    Host and port are read from ``BGREMOVE_HOST`` / ``BGREMOVE_PORT`` (defaulting
+    to 127.0.0.1:8000) so the same entry point works for local dev and for the
+    NixOS systemd service.
+    """
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    host = os.environ.get("BGREMOVE_HOST", "127.0.0.1")
+    port = int(os.environ.get("BGREMOVE_PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == "__main__":

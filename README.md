@@ -43,6 +43,41 @@ Inside the shell, `bgremove`, `bgremove-web`, and `pytest` are ready to use. See
 > **First run downloads a model** (~170 MB, cached under `~/.u2net/`). It happens
 > automatically the first time you process an image; later runs are offline.
 
+### Nix package & flake
+
+The flake also builds a real package (using nixpkgs Python deps — no pip, no
+`LD_LIBRARY_PATH` workaround):
+
+```bash
+nix build              # -> ./result/bin/{bgremove,bgremove-web}
+nix run                # run the web server
+nix run .#bgremove -- run photo.jpg   # run the CLI
+```
+
+### NixOS service
+
+The flake exposes `nixosModules.default`, a `services.bgremove` systemd service. In a
+flake-based system config:
+
+```nix
+{
+  inputs.bgremove.url = "github:mickours/rmBackground";
+
+  # in your nixosSystem modules:
+  imports = [ inputs.bgremove.nixosModules.default ];
+  services.bgremove = {
+    enable = true;
+    host = "0.0.0.0";     # default 127.0.0.1
+    port = 8000;
+    openFirewall = true;  # default false
+  };
+}
+```
+
+The service runs as a hardened `DynamicUser`, caches models under
+`/var/lib/bgremove/models` (`U2NET_HOME`), and pulls the model on first request (needs
+network). Host/port are passed via `BGREMOVE_HOST` / `BGREMOVE_PORT`.
+
 ### GPU (NVIDIA + CUDA) on NixOS
 
 Use the GPU shell, which additionally puts the CUDA runtime libraries that onnxruntime-gpu

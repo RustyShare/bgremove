@@ -31,3 +31,7 @@ output/
 
 # Claude Code local settings
 .claude/
+
+# nix build output symlink
+result
+result-*
