@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="bgremove">
+  <defs>
+    <!-- Transparency checkerboard, the app's motif for a removed background. -->
+    <pattern id="checker" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#e9eef3"/>
+      <rect width="8" height="8" fill="#c7ced6"/>
+      <rect x="8" y="8" width="8" height="8" fill="#c7ced6"/>
+    </pattern>
+    <clipPath id="rounded">
+      <rect x="2" y="2" width="60" height="60" rx="15"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <!-- background = transparency checkerboard -->
+    <rect width="64" height="64" fill="url(#checker)"/>
+    <!-- kept subject: a head-and-shoulders silhouette in the accent color -->
+    <g fill="#2b7cf0">
+      <circle cx="32" cy="25" r="10"/>
+      <path d="M13 58c0-11 8.5-17 19-17s19 6 19 17z"/>
+    </g>
+    <!-- dashed "selection" outline around the subject -->
+    <g fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="4 3" opacity="0.9">
+      <circle cx="32" cy="25" r="12.5"/>
+      <path d="M10.5 58c0-12.5 9.5-19.5 21.5-19.5S53.5 45.5 53.5 58"/>
+    </g>
+  </g>
+
+  <!-- rounded frame -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="none" stroke="#2b7cf0" stroke-width="3"/>
+</svg>
