@@ -130,16 +130,20 @@ in
       }
     ];
 
+    # Everything we contribute to services.nginx is set at default priority
+    # (lib.mkDefault) so it merges with — and never overrides — nginx/ACME
+    # config you already provide. Override any of these in your own config and
+    # your value wins.
     services.nginx = lib.mkIf cfg.nginx.enable {
-      enable = true;
-      recommendedProxySettings = true;
+      enable = lib.mkDefault true;
+      recommendedProxySettings = lib.mkDefault true;
       virtualHosts.${cfg.nginx.fqdn} = {
-        enableACME = cfg.nginx.enableACME;
-        forceSSL = cfg.nginx.forceSSL;
+        enableACME = lib.mkDefault cfg.nginx.enableACME;
+        forceSSL = lib.mkDefault cfg.nginx.forceSSL;
         locations."/" = {
-          proxyPass = "http://${proxyHost}:${toString cfg.port}";
+          proxyPass = lib.mkDefault "http://${proxyHost}:${toString cfg.port}";
           # Match the app's 25 MB upload limit so nginx doesn't 413 large images.
-          extraConfig = "client_max_body_size 25m;";
+          extraConfig = lib.mkDefault "client_max_body_size 25m;";
         };
       };
     };
