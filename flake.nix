@@ -4,9 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    nix2container.url = "github:nlewo/nix2container";
+    nix2container.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, nix2container }:
     (flake-utils.lib.eachDefaultSystem (system:
       let
         # allowUnfree is needed for the CUDA packages used by the gpu shell.
@@ -56,11 +58,32 @@
           '';
         };
         bgremove = pkgs.python3Packages.callPackage ./package.nix { };
+
+        # Container image built with nix2container. Runs the web server on
+        # 0.0.0.0:8000; models download to /models on first request (needs
+        # network + CA certs, both provided).
+        n2c = nix2container.packages.${system}.nix2container;
+        container = n2c.buildImage {
+          name = "ghcr.io/rustyshare/bgremove";
+          tag = "latest";
+          config = {
+            Cmd = [ "${bgremove}/bin/bgremove-web" ];
+            ExposedPorts = { "8000/tcp" = { }; };
+            Env = [
+              "BGREMOVE_HOST=0.0.0.0"
+              "BGREMOVE_PORT=8000"
+              "U2NET_HOME=/models"
+              "HOME=/tmp"
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+            ];
+          };
+        };
       in
       {
         # Packaged app (no pip / no LD_LIBRARY_PATH needed): nix build
         packages.default = bgremove;
         packages.bgremove = bgremove;
+        packages.container = container;
 
         # nix run            -> the web server
         # nix run .#bgremove -> the CLI

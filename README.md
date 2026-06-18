@@ -54,6 +54,20 @@ nix run                # run the web server
 nix run .#bgremove -- run photo.jpg   # run the CLI
 ```
 
+### Docker container
+
+The flake builds a container image with [nix2container](https://github.com/nlewo/nix2container)
+that runs the web server on `0.0.0.0:8000`:
+
+```bash
+nix run .#container.copyToDockerDaemon   # load into the local Docker daemon
+docker run --rm -p 8000:8000 ghcr.io/rustyshare/bgremove:latest
+```
+
+CI publishes it to `ghcr.io/rustyshare/bgremove` (tags `latest` and the commit SHA). The
+model downloads to `/models` on first request, so the container needs network access then
+(CA certs are baked in); mount a volume at `/models` to cache it across runs.
+
 ### NixOS service
 
 The flake exposes `nixosModules.default`, a `services.bgremove` systemd service. In a
