@@ -35,7 +35,7 @@ bgremove = "bgremove.cli:app"
 bgremove-web = "bgremove.web.app:main"
 
 [project.urls]
-Homepage = "https://github.com/mickours/rmBackground"
+Homepage = "https://github.com/RustyShare/bgremove"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bgremove"]
