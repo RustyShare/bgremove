@@ -48,7 +48,7 @@ buildPythonApplication {
 
   meta = {
     description = "Remove the background from a picture (CLI + web), powered by local ML (rembg)";
-    homepage = "https://github.com/mickours/rmBackground";
+    homepage = "https://github.com/RustyShare/bgremove";
     license = lib.licenses.mit;
     mainProgram = "bgremove";
   };

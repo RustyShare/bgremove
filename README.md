@@ -75,7 +75,7 @@ flake-based system config:
 
 ```nix
 {
-  inputs.bgremove.url = "github:mickours/rmBackground";
+  inputs.bgremove.url = "github:RustyShare/bgremove";
 
   # in your nixosSystem modules:
   imports = [ inputs.bgremove.nixosModules.default ];
