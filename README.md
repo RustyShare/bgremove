@@ -84,6 +84,13 @@ flake-based system config:
     host = "0.0.0.0";     # default 127.0.0.1
     port = 8000;
     openFirewall = true;  # default false
+
+    # Optional: front it with an nginx reverse-proxy virtualHost.
+    nginx = {
+      enable = true;
+      fqdn = "bgremove.example.com";
+      enableACME = true;  # Let's Encrypt cert + force HTTPS (default false)
+    };
   };
 }
 ```
@@ -91,6 +98,11 @@ flake-based system config:
 The service runs as a hardened `DynamicUser`, caches models under
 `/var/lib/bgremove/models` (`U2NET_HOME`), and pulls the model on first request (needs
 network). Host/port are passed via `BGREMOVE_HOST` / `BGREMOVE_PORT`.
+
+With `nginx.enable`, the module configures `services.nginx` with a virtualHost for
+`nginx.fqdn` proxying to the service (raising `client_max_body_size` to 25 MB to match the
+upload limit) and opens ports 80/443. `enableACME` provisions a Let's Encrypt certificate
+and forces HTTPS (you must accept the ACME terms, e.g. `security.acme.acceptTerms = true`).
 
 ### GPU (NVIDIA + CUDA) on NixOS
 

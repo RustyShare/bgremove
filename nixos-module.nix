@@ -3,9 +3,11 @@
 # Enable with, e.g.:
 #   services.bgremove = {
 #     enable = true;
-#     host = "0.0.0.0";   # listen on all interfaces (default 127.0.0.1)
-#     port = 8000;
-#     openFirewall = true;
+#     nginx = {
+#       enable = true;
+#       fqdn = "bgremove.example.com";
+#       enableACME = true;   # Let's Encrypt cert + force HTTPS
+#     };
 #   };
 #
 # `self` is this flake, used to default the package to the flake's build.
@@ -14,6 +16,8 @@
 
 let
   cfg = config.services.bgremove;
+  # nginx must proxy to a reachable address; 0.0.0.0 isn't connectable.
+  proxyHost = if cfg.host == "0.0.0.0" then "127.0.0.1" else cfg.host;
 in
 {
   options.services.bgremove = {
@@ -42,6 +46,37 @@ in
       type = lib.types.bool;
       default = false;
       description = "Open {option}`port` in the firewall.";
+    };
+
+    nginx = {
+      enable = lib.mkEnableOption "an nginx reverse-proxy virtualHost for bgremove";
+
+      fqdn = lib.mkOption {
+        type = lib.types.str;
+        default = "";
+        example = "bgremove.example.com";
+        description = ''
+          Fully-qualified domain name for the nginx virtualHost that proxies to
+          the bgremove service.
+        '';
+      };
+
+      enableACME = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Obtain a Let's Encrypt certificate for {option}`fqdn` via ACME and
+          redirect HTTP to HTTPS. Requires accepting the ACME terms elsewhere
+          (e.g. {option}`security.acme.acceptTerms`).
+        '';
+      };
+
+      forceSSL = lib.mkOption {
+        type = lib.types.bool;
+        default = cfg.nginx.enableACME;
+        defaultText = lib.literalExpression "config.services.bgremove.nginx.enableACME";
+        description = "Only serve over HTTPS (redirect HTTP).";
+      };
     };
   };
 
@@ -82,6 +117,31 @@ in
       };
     };
 
-    networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
+    # Open the service port directly when requested, and 80/443 when nginx
+    # fronts it (a single definition — the attribute can't be set twice).
+    networking.firewall.allowedTCPPorts =
+      lib.optional cfg.openFirewall cfg.port
+      ++ lib.optionals cfg.nginx.enable ([ 80 ] ++ lib.optional cfg.nginx.forceSSL 443);
+
+    assertions = [
+      {
+        assertion = cfg.nginx.enable -> cfg.nginx.fqdn != "";
+        message = "services.bgremove.nginx.fqdn must be set when nginx is enabled.";
+      }
+    ];
+
+    services.nginx = lib.mkIf cfg.nginx.enable {
+      enable = true;
+      recommendedProxySettings = true;
+      virtualHosts.${cfg.nginx.fqdn} = {
+        enableACME = cfg.nginx.enableACME;
+        forceSSL = cfg.nginx.forceSSL;
+        locations."/" = {
+          proxyPass = "http://${proxyHost}:${toString cfg.port}";
+          # Match the app's 25 MB upload limit so nginx doesn't 413 large images.
+          extraConfig = "client_max_body_size 25m;";
+        };
+      };
+    };
   };
 }
