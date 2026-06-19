@@ -62,6 +62,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           # Avoid skopeo registries.conf version mismatch issue
+          mkdir -p $HOME/.config/containers
           touch $HOME/.config/containers/registries.conf
           nix run .#container.copyToRegistry
           nix run .#container.copyTo -- \
