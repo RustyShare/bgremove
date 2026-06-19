@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bgremove"
-version = "0.1.0"
+version = "1.0.0"
 description = "Remove the background from a picture, keeping only the main subject. CLI + web UI, powered by local ML (rembg)."
 readme = "README.md"
 requires-python = ">=3.9"
