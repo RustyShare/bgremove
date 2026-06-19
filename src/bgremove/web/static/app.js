@@ -27,6 +27,14 @@ function setStatus(message, isError = false) {
   statusEl.classList.toggle("error", isError);
 }
 
+// Set a card's status line, mirroring the text into the title attribute so the
+// full message shows in a tooltip when it's clipped to one line.
+function setCardStatus(el, message, isError = false) {
+  el.textContent = message;
+  el.title = message;
+  el.classList.toggle("error", isError);
+}
+
 function revokeResults() {
   resultUrls.forEach((url) => URL.revokeObjectURL(url));
   resultUrls = [];
@@ -42,8 +50,7 @@ async function processOne(file, card) {
   spinner.hidden = false;
   img.hidden = true;
   download.hidden = true;
-  cardStatus.textContent = "Removing background…";
-  cardStatus.classList.remove("error");
+  setCardStatus(cardStatus, "Removing background…");
 
   const form = new FormData();
   form.append("file", file);
@@ -74,13 +81,11 @@ async function processOne(file, card) {
     download.href = url;
     download.setAttribute("download", filename);
     download.hidden = false;
-    cardStatus.textContent = "Done.";
+    setCardStatus(cardStatus, "Done.");
     batchResults.push({ filename, blob });
     return true;
   } catch (err) {
-    cardStatus.textContent = `Failed: ${err.message}`;
-    cardStatus.title = cardStatus.textContent; // full message on hover (it's clamped)
-    cardStatus.classList.add("error");
+    setCardStatus(cardStatus, `Failed: ${err.message}`, true);
     return false;
   } finally {
     spinner.hidden = true;

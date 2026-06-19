@@ -129,6 +129,9 @@ main {
   padding: 0.75rem;
   display: flex;
   flex-direction: column;
+  /* Minimum width so status/filename text has room even for narrow (portrait)
+     images; wider images grow the card past this. */
+  min-width: 260px;
 }
 
 /* Captions are clamped to one line at the card (image) width: width:0 keeps
@@ -171,6 +174,7 @@ main {
    fit-content stops it stretching to the card so the card sizes to the image.
    min-width keeps the box reasonable while the spinner shows (no image yet). */
 .image-wrap {
+  align-self: center; /* center a narrow image within a min-width card */
   border-radius: 8px;
   overflow: hidden;
   height: 260px;
