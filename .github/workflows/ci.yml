@@ -62,8 +62,8 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           # Avoid skopeo registries.conf version mismatch issue
-          mkdir -p $HOME/.config/containers
-          touch $HOME/.config/containers/registries.conf
+          mkdir -p "$HOME/.config/containers"
+          touch "$HOME/.config/containers/registries.conf"
           nix run .#container.copyToRegistry
           nix run .#container.copyTo -- \
             docker://ghcr.io/rustyshare/bgremove:${{ github.sha }}
