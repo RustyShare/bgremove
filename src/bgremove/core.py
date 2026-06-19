@@ -16,8 +16,20 @@ import glob
 import logging
 import os
 import sys
+import tempfile
 import threading
 import time
+
+# pymatting (used for alpha matting) JIT-compiles with numba and tries to write a
+# compilation cache next to its source files. When bgremove is installed in a
+# read-only location (the Nix store) or run under a hardened read-only
+# filesystem, that fails with "cannot cache function ... no locator available
+# for file .../pymatting/.../kdtree.py". Point numba's cache at a writable temp
+# dir unless the deployment set NUMBA_CACHE_DIR itself. Must happen before numba
+# is imported (i.e. before the first alpha-matting run).
+os.environ.setdefault(
+    "NUMBA_CACHE_DIR", os.path.join(tempfile.gettempdir(), "bgremove-numba")
+)
 
 logger = logging.getLogger("bgremove.core")
 

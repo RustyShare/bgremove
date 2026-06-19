@@ -93,6 +93,9 @@ in
         BGREMOVE_PORT = toString cfg.port;
         # rembg caches downloaded models here; keep it in the service state dir.
         U2NET_HOME = "/var/lib/bgremove/models";
+        # numba (via pymatting, for alpha matting) needs a writable cache dir;
+        # the package ships in the read-only Nix store. Persist it in state.
+        NUMBA_CACHE_DIR = "/var/lib/bgremove/numba-cache";
       };
 
       serviceConfig = {

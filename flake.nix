@@ -74,6 +74,8 @@
               "BGREMOVE_PORT=8000"
               "U2NET_HOME=/models"
               "HOME=/tmp"
+              # numba (pymatting, for alpha matting) needs a writable cache dir.
+              "NUMBA_CACHE_DIR=/tmp/numba-cache"
               "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
             ];
           };
