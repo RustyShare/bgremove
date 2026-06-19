@@ -35,13 +35,10 @@ logger = logging.getLogger("bgremove.web")
 
 
 def _configure_logging() -> None:
-    """Ensure the ``bgremove`` logs are emitted.
-
-    uvicorn configures only its own loggers, not ours, so without this our
-    ``bgremove.*`` log records would have no handler and never appear. Attach one
-    handler to the package root logger and stop it propagating to avoid dupes.
     """
-    root = logging.getLogger("bgremove")
+    Ensure the ``bgremove`` logs are emitted and uvicorn logs are formatted
+    """
+    root = logging.getLogger()
     root.setLevel(logging.INFO)
     if not root.handlers:
         handler = logging.StreamHandler()
@@ -49,7 +46,7 @@ def _configure_logging() -> None:
             logging.Formatter("%(asctime)s %(levelname)-7s [%(name)s] %(message)s")
         )
         root.addHandler(handler)
-        root.propagate = False
+        root.propagate = True
 
 
 _configure_logging()
@@ -75,7 +72,9 @@ def _warm_default_model() -> None:
 async def lifespan(app: FastAPI):
     # Warm the default model in the background so the first real request is fast,
     # without blocking startup (and without freezing the event loop).
-    logger.info("Startup: scheduling background warm-up of default model %r.", DEFAULT_MODEL)
+    logger.info(
+        "Startup: scheduling background warm-up of default model %r.", DEFAULT_MODEL
+    )
     asyncio.create_task(run_in_threadpool(_warm_default_model))
     yield
 
@@ -186,7 +185,7 @@ def main() -> None:
 
     host = os.environ.get("BGREMOVE_HOST", "127.0.0.1")
     port = int(os.environ.get("BGREMOVE_PORT", "8000"))
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(app, host=host, port=port, log_config=None)
 
 
 if __name__ == "__main__":

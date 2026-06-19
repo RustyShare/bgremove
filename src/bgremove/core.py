@@ -78,6 +78,7 @@ def _ensure_native_libs() -> None:
         _native_libs_ready = True
         return
 
+
 # The default model is a good general-purpose choice. Alternatives:
 #   - "u2netp"             : lighter/faster, slightly lower quality
 #   - "isnet-general-use"  : sharper edges on many subjects
@@ -129,8 +130,7 @@ def _session(model: str):
 
         if _current_session is not None:
             logger.info(
-                "Releasing session for model %r to free its memory before "
-                "loading %r.",
+                "Releasing session for model %r to free its memory before loading %r.",
                 _current_model,
                 model,
             )
@@ -144,7 +144,9 @@ def _session(model: str):
         model_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
         model_path = os.path.join(model_home, f"{model}.onnx")
         if os.path.exists(model_path):
-            logger.info("Model %r already cached at %s; loading session.", model, model_path)
+            logger.info(
+                "Model %r already cached at %s; loading session.", model, model_path
+            )
         else:
             logger.info(
                 "Model %r NOT cached — rembg will download it to %s (this can take a "

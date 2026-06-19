@@ -84,7 +84,9 @@ def run(
         )
         dst = dst.with_suffix(".png")
 
-    typer.echo(f"Processing {input} -> {dst} (model={model}, background={background}) ...")
+    typer.echo(
+        f"Processing {input} -> {dst} (model={model}, background={background}) ..."
+    )
     _process_file(input, dst, model, alpha_matting, background)
     typer.secho(f"Done: {dst}", fg=typer.colors.GREEN)
 
