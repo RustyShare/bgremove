@@ -1,5 +1,146 @@
 "use strict";
 
+// --- i18n -----------------------------------------------------------------
+// Flat key -> string maps. Strings may contain {name} placeholders filled by t().
+const TRANSLATIONS = {
+  en: {
+    page_title: "bgremove — background removal",
+    tagline: "Drop a picture — keep only the main subject.",
+    dropzone_main: "<strong>Drag &amp; drop</strong> one or more images here",
+    dropzone_sub: "or click to choose files",
+    label_model: "Model",
+    label_background: "Background",
+    label_alpha: "Alpha matting (refine hair/fur edges, slower)",
+    model_u2net: "u2net (general)",
+    model_isnet: "isnet (sharper edges)",
+    model_human: "u2net (people)",
+    model_u2netp: "u2netp (fast/light)",
+    model_silueta: "silueta (small)",
+    bg_transparent: "Transparent",
+    bg_white: "White",
+    bg_black: "Black",
+    rerun: "Re-run with selected model",
+    download: "Download",
+    download_all: "Download all",
+    download_all_count: "Download all ({n})",
+    hint:
+      "The first request for a given model downloads it (~170 MB for the " +
+      "large ones), so it can take a while. The page stays usable meanwhile.",
+    choose_images: "Please choose one or more image files.",
+    busy: "Still working on the previous batch — please wait.",
+    processing: "Processing {done}/{total}…",
+    removing: "Removing background…",
+    done: "Done.",
+    failed_single: "Failed — see the card below.",
+    done_ok: "Done: {ok} succeeded.",
+    done_mixed: "Done: {ok} succeeded, {failed} failed.",
+    settings_changed: "Settings changed — click “Re-run” to apply.",
+    card_failed: "Failed: {msg}",
+    drop_paths_only:
+      "This drag passed only file paths, not the files — Firefox can't read " +
+      "files dragged from GNOME Files (Nautilus). Click the box to choose the " +
+      "images instead (or use a Chromium-based browser to drag them).",
+    drop_no_file:
+      "Couldn't read any file from the drop (drag types: {types}). Click the " +
+      "box to choose files instead.",
+    script_error: "Script error: {msg}",
+    error_generic: "Error: {msg}",
+  },
+  fr: {
+    page_title: "bgremove — suppression d'arrière-plan",
+    tagline: "Déposez une image — ne gardez que le sujet principal.",
+    dropzone_main:
+      "<strong>Glissez-déposez</strong> une ou plusieurs images ici",
+    dropzone_sub: "ou cliquez pour choisir des fichiers",
+    label_model: "Modèle",
+    label_background: "Arrière-plan",
+    label_alpha: "Détourage alpha (affine les contours cheveux/poils, plus lent)",
+    model_u2net: "u2net (général)",
+    model_isnet: "isnet (contours plus nets)",
+    model_human: "u2net (personnes)",
+    model_u2netp: "u2netp (rapide/léger)",
+    model_silueta: "silueta (petit)",
+    bg_transparent: "Transparent",
+    bg_white: "Blanc",
+    bg_black: "Noir",
+    rerun: "Relancer avec le modèle choisi",
+    download: "Télécharger",
+    download_all: "Tout télécharger",
+    download_all_count: "Tout télécharger ({n})",
+    hint:
+      "La première requête pour un modèle donné le télécharge (~170 Mo pour " +
+      "les plus gros), cela peut donc prendre un moment. La page reste " +
+      "utilisable pendant ce temps.",
+    choose_images: "Veuillez choisir une ou plusieurs images.",
+    busy: "Traitement du lot précédent en cours — veuillez patienter.",
+    processing: "Traitement {done}/{total}…",
+    removing: "Suppression de l'arrière-plan…",
+    done: "Terminé.",
+    failed_single: "Échec — voir la carte ci-dessous.",
+    done_ok: "Terminé : {ok} réussi(s).",
+    done_mixed: "Terminé : {ok} réussi(s), {failed} échoué(s).",
+    settings_changed: "Réglages modifiés — cliquez sur « Relancer » pour appliquer.",
+    card_failed: "Échec : {msg}",
+    drop_paths_only:
+      "Ce glisser-déposer n'a transmis que des chemins de fichiers — Firefox " +
+      "ne peut pas lire les fichiers glissés depuis GNOME Fichiers (Nautilus). " +
+      "Cliquez sur la zone pour choisir les images (ou utilisez un navigateur " +
+      "basé sur Chromium pour les glisser).",
+    drop_no_file:
+      "Impossible de lire un fichier depuis le dépôt (types : {types}). " +
+      "Cliquez sur la zone pour choisir des fichiers.",
+    script_error: "Erreur de script : {msg}",
+    error_generic: "Erreur : {msg}",
+  },
+};
+
+const LANG_KEY = "bgremove-lang";
+
+function detectLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved && TRANSLATIONS[saved]) return saved;
+  } catch (_) {
+    /* localStorage may be unavailable; fall through */
+  }
+  const nav = (navigator.language || "en").slice(0, 2).toLowerCase();
+  return TRANSLATIONS[nav] ? nav : "en";
+}
+
+let lang = detectLang();
+
+function t(key, params) {
+  let s =
+    (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) ||
+    TRANSLATIONS.en[key] ||
+    key;
+  if (params) {
+    for (const k in params) s = s.split(`{${k}}`).join(String(params[k]));
+  }
+  return s;
+}
+
+function applyI18n() {
+  document.documentElement.lang = lang;
+  document.title = t("page_title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
+}
+
+function setLang(l) {
+  lang = TRANSLATIONS[l] ? l : "en";
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch (_) {
+    /* ignore persistence failures */
+  }
+  applyI18n();
+}
+
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("file-input");
 const modelSelect = document.getElementById("model");
@@ -11,6 +152,12 @@ const gallery = document.getElementById("gallery");
 const cardTemplate = document.getElementById("card-template");
 const batchActions = document.getElementById("batch-actions");
 const downloadAllBtn = document.getElementById("download-all");
+const langSelect = document.getElementById("lang");
+
+// Apply the detected/saved language on load, and let the selector change it.
+langSelect.value = lang;
+applyI18n();
+langSelect.addEventListener("change", () => setLang(langSelect.value));
 
 let busy = false;
 // The most recently selected images, kept so the model/options can be changed
@@ -50,7 +197,7 @@ async function processOne(file, card) {
   spinner.hidden = false;
   img.hidden = true;
   download.hidden = true;
-  setCardStatus(cardStatus, "Removing background…");
+  setCardStatus(cardStatus, t("removing"));
 
   const form = new FormData();
   form.append("file", file);
@@ -81,11 +228,11 @@ async function processOne(file, card) {
     download.href = url;
     download.setAttribute("download", filename);
     download.hidden = false;
-    setCardStatus(cardStatus, "Done.");
+    setCardStatus(cardStatus, t("done"));
     batchResults.push({ filename, blob });
     return true;
   } catch (err) {
-    setCardStatus(cardStatus, `Failed: ${err.message}`, true);
+    setCardStatus(cardStatus, t("card_failed", { msg: err.message }), true);
     return false;
   } finally {
     spinner.hidden = true;
@@ -107,11 +254,11 @@ async function handleFiles(fileList) {
     f.type.startsWith("image/")
   );
   if (files.length === 0) {
-    setStatus("Please choose one or more image files.", true);
+    setStatus(t("choose_images"), true);
     return;
   }
   if (busy) {
-    setStatus("Still working on the previous batch — please wait.", true);
+    setStatus(t("busy"), true);
     return;
   }
 
@@ -135,7 +282,9 @@ async function handleFiles(fileList) {
   let done = 0;
   let ok = 0;
   const single = files.length === 1;
-  setStatus(single ? "Removing background…" : `Processing 0/${files.length}…`);
+  setStatus(
+    single ? t("removing") : t("processing", { done: 0, total: files.length })
+  );
   try {
     // Sequential, like the CLI's batch command — predictable progress and it
     // doesn't pile work onto the single-worker server.
@@ -143,21 +292,23 @@ async function handleFiles(fileList) {
       const success = await processOne(file, card);
       done += 1;
       if (success) ok += 1;
-      if (!single) setStatus(`Processing ${done}/${files.length}…`);
+      if (!single) setStatus(t("processing", { done, total: files.length }));
     }
     const failed = done - ok;
     setStatus(
       single
         ? ok
-          ? "Done."
-          : "Failed — see the card below."
-        : `Done: ${ok} succeeded${failed ? `, ${failed} failed` : ""}.`,
+          ? t("done")
+          : t("failed_single")
+        : failed
+        ? t("done_mixed", { ok, failed })
+        : t("done_ok", { ok }),
       single && !ok
     );
     if (ok > 0) {
       downloadAllBtn.disabled = false;
       downloadAllBtn.textContent =
-        ok === 1 ? "Download" : `Download all (${ok})`;
+        ok === 1 ? t("download") : t("download_all_count", { n: ok });
       batchActions.hidden = false;
     }
   } finally {
@@ -299,12 +450,12 @@ function buildZip(entries) {
 // failing silently with only a console message.
 window.addEventListener("error", (e) => {
   busy = false;
-  setStatus(`Script error: ${e.message}`, true);
+  setStatus(t("script_error", { msg: e.message }), true);
 });
 window.addEventListener("unhandledrejection", (e) => {
   busy = false;
   const reason = e.reason && e.reason.message ? e.reason.message : e.reason;
-  setStatus(`Error: ${reason}`, true);
+  setStatus(t("error_generic", { msg: reason }), true);
 });
 
 // --- Wire up the dropzone -------------------------------------------------
@@ -331,7 +482,7 @@ rerunBtn.addEventListener("click", () => {
 function markStale() {
   if (lastFiles.length && !busy) {
     rerunBtn.classList.add("attention");
-    setStatus("Settings changed — click “Re-run” to apply.");
+    setStatus(t("settings_changed"));
   }
 }
 modelSelect.addEventListener("change", markStale);
@@ -406,19 +557,9 @@ window.addEventListener("drop", (e) => {
     types.includes("text/uri-list") ||
     types.includes("x-special/gnome-copied-files");
   if (pathOnlyDrag) {
-    setStatus(
-      "This drag passed only file paths, not the files — Firefox can't read " +
-        "files dragged from GNOME Files (Nautilus). Click the box to choose " +
-        "the images instead (or use a Chromium-based browser to drag them).",
-      true
-    );
+    setStatus(t("drop_paths_only"), true);
   } else {
-    setStatus(
-      `Couldn't read any file from the drop (drag types: ${
-        types.join(", ") || "none"
-      }). Click the box to choose files instead.`,
-      true
-    );
+    setStatus(t("drop_no_file", { types: types.join(", ") || "none" }), true);
   }
 });
 

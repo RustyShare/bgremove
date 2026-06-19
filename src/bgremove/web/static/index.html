@@ -9,52 +9,62 @@
   </head>
   <body>
     <header>
+      <label class="lang-select">
+        <select id="lang" aria-label="Language">
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+        </select>
+      </label>
       <div class="brand">
         <img src="/icon.svg" alt="" class="logo" width="40" height="40" />
         <h1>bgremove</h1>
       </div>
-      <p class="tagline">Drop a picture — keep only the main subject.</p>
+      <p class="tagline" data-i18n="tagline">
+        Drop a picture — keep only the main subject.
+      </p>
     </header>
 
     <main>
       <section id="dropzone" class="dropzone" tabindex="0">
         <input id="file-input" type="file" accept="image/*" multiple hidden />
         <div class="dropzone-inner">
-          <p><strong>Drag &amp; drop</strong> one or more images here</p>
-          <p class="muted">or click to choose files</p>
+          <p data-i18n-html="dropzone_main">
+            <strong>Drag &amp; drop</strong> one or more images here
+          </p>
+          <p class="muted" data-i18n="dropzone_sub">or click to choose files</p>
         </div>
       </section>
 
       <div class="controls">
         <label>
-          Model
+          <span data-i18n="label_model">Model</span>
           <select id="model">
-            <option value="u2net" selected>u2net (general)</option>
-            <option value="isnet-general-use">isnet (sharper edges)</option>
-            <option value="u2net_human_seg">u2net (people)</option>
-            <option value="u2netp">u2netp (fast/light)</option>
-            <option value="silueta">silueta (small)</option>
+            <option value="u2net" selected data-i18n="model_u2net">u2net (general)</option>
+            <option value="isnet-general-use" data-i18n="model_isnet">isnet (sharper edges)</option>
+            <option value="u2net_human_seg" data-i18n="model_human">u2net (people)</option>
+            <option value="u2netp" data-i18n="model_u2netp">u2netp (fast/light)</option>
+            <option value="silueta" data-i18n="model_silueta">silueta (small)</option>
           </select>
         </label>
         <label>
-          Background
+          <span data-i18n="label_background">Background</span>
           <select id="background">
-            <option value="transparent" selected>Transparent</option>
-            <option value="white">White</option>
-            <option value="black">Black</option>
+            <option value="transparent" selected data-i18n="bg_transparent">Transparent</option>
+            <option value="white" data-i18n="bg_white">White</option>
+            <option value="black" data-i18n="bg_black">Black</option>
           </select>
         </label>
         <label class="checkbox">
           <input id="alpha-matting" type="checkbox" />
-          Alpha matting (refine hair/fur edges, slower)
+          <span data-i18n="label_alpha">Alpha matting (refine hair/fur edges, slower)</span>
         </label>
-        <button id="rerun" type="button" class="button" disabled>
+        <button id="rerun" type="button" class="button" disabled data-i18n="rerun">
           Re-run with selected model
         </button>
       </div>
 
       <div id="batch-actions" class="batch-actions" hidden>
-        <button id="download-all" class="button" type="button">
+        <button id="download-all" class="button" type="button" data-i18n="download_all">
           Download all
         </button>
       </div>
@@ -72,11 +82,11 @@
           </div>
           <figcaption class="card-name"></figcaption>
           <span class="card-status muted"></span>
-          <a class="button card-download" hidden>Download</a>
+          <a class="button card-download" hidden data-i18n="download">Download</a>
         </figure>
       </template>
 
-      <p class="muted hint">
+      <p class="muted hint" data-i18n="hint">
         The first request for a given model downloads it (~170&nbsp;MB for the
         large ones), so it can take a while. The page stays usable meanwhile.
       </p>

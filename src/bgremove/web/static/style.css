@@ -22,8 +22,25 @@ body {
 }
 
 header {
+  position: relative;
   text-align: center;
   padding: 2rem 1rem 0.5rem;
+}
+
+.lang-select {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.lang-select select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .brand {
