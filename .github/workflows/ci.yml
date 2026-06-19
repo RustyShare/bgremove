@@ -61,6 +61,8 @@ jobs:
       - name: Push image (latest + commit SHA)
         if: github.event_name != 'pull_request'
         run: |
+          # Avoid skopeo registries.conf version mismatch issue
+          touch $HOME/.config/containers/registries.conf
           nix run .#container.copyToRegistry
           nix run .#container.copyTo -- \
             docker://ghcr.io/rustyshare/bgremove:${{ github.sha }}
