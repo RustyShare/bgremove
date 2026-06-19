@@ -23,4 +23,4 @@ __all__ = [
     "SUPPORTED_BACKGROUNDS",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
