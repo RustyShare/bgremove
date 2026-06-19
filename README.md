@@ -238,6 +238,45 @@ tests/               # core + web tests
 DESIGN.md            # architecture & decisions
 ```
 
+## Development
+
+```bash
+nix develop          # or: nix-shell — venv + LD_LIBRARY_PATH set up for you
+pytest               # run the tests
+bgremove-web         # serve the UI at http://127.0.0.1:8000
+```
+
+Quirks worth knowing:
+
+- **Frontend has no build step.** `web/static/` is served straight from disk, and the
+  server sends `Cache-Control: no-cache`, so a **hard-refresh** picks up HTML/CSS/JS edits.
+  Python changes need a **server restart**.
+- **NixOS / pip wheels.** Outside the Nix shell, the pip-installed `numpy`/`onnxruntime`
+  wheels can't find `libstdc++` — the dev shell puts it on `LD_LIBRARY_PATH`, and the
+  packaged app preloads it itself (see [`core.py`](src/bgremove/core.py)). See the
+  [NixOS note](#nixos-note).
+- **Runtime caches.** Models download once to `~/.u2net` (override with `U2NET_HOME`); alpha
+  matting's numba cache goes to `NUMBA_CACHE_DIR` (defaults to a temp dir).
+- **Translations** live in the `TRANSLATIONS` map in
+  [`web/static/app.js`](src/bgremove/web/static/app.js). To add a language, add a key block
+  (keep key parity with `en`) and an `<option>` to the `#lang` selector in `index.html`.
+
+### Releasing
+
+Bump the version everywhere it's declared (pyproject, Nix package, `__version__`) with the
+helper, then commit and tag:
+
+```bash
+scripts/bump-version.sh minor      # or: patch | major | 1.2.3
+scripts/bump-version.sh            # no args: print + check version consistency
+git commit -am "Release v0.2.0" && git tag v0.2.0
+git push --follow-tags
+```
+
+Pushing to `main` (or a `v*` tag) runs CI, which builds the Python package (sdist + wheel)
+and publishes the container to `ghcr.io/rustyshare/bgremove` (tags `latest` and the commit
+SHA).
+
 ## License
 
 MIT.
